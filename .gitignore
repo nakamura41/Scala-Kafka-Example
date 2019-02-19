@@ -1,0 +1,5 @@
+.idea
+scalakafka*
+out/*
+target/*
+project/*
