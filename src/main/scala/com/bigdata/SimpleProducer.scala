@@ -4,6 +4,7 @@ import java.util.Properties
 
 import kafka.utils.Logging
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
+import scalaj.http._
 
 class SimpleProducer(val topic: String) extends Logging {
 
@@ -23,11 +24,17 @@ class SimpleProducer(val topic: String) extends Logging {
     props
   }
 
-  def run(): Unit = {
-    for (i <- 1 to 10) {
-      producer.send(new ProducerRecord[String, String](this.topic, Integer.toString(i), Integer.toString(i)))
-    }
-
+  def run(stockTicker: String): Unit = {
+    val topic: String = this.topic
+    val timestamp: Long = System.currentTimeMillis
+    val stockUrl: String = s"https://api.iextrading.com/1.0/stock/$stockTicker/quote"
+    val stockId: String = s"$stockTicker-$timestamp"
+    val response: HttpResponse[String] = Http(stockUrl)
+      .header("Content-Type", "application/json")
+      .header("Charset", "UTF-8")
+      .option(HttpOptions.readTimeout(10000)).asString
+    System.out.println(s"Publish $stockTicker stock quote: id $stockId")
+    producer.send(new ProducerRecord[String, String](topic, stockId, response.body))
     System.out.println("Message sent successfully")
     producer.close()
   }
@@ -35,10 +42,10 @@ class SimpleProducer(val topic: String) extends Logging {
 }
 
 object SimpleProducer extends App {
-  if (args.length == 0) {
-    System.out.println("Enter topic name")
-  } else {
+  if (args.length == 2) {
     val app = new SimpleProducer(args(0))
-    app.run()
+    app.run(args(1))
+  } else {
+    System.out.println("Enter topic name and stock ticker")
   }
 }
